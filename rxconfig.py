@@ -3,6 +3,7 @@ import reflex as rx
 
 config = rx.Config(
     app_name="brochure_app",
+    show_built_with_reflex=False,
     # Free-tier friendly settings
     db_url="sqlite:///reflex.db",
     # Set to 100 MB to allow PDF uploads
