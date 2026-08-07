@@ -1,1 +1,0 @@
-"""Brochure Analyzer package."""
