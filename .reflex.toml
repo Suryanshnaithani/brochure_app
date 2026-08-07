@@ -1,0 +1,6 @@
+# Brochure Analyzer — Reflex Cloud Deployment Config
+[deploy]
+region = "us-east-1"
+
+[app]
+name = "brochure_app"
