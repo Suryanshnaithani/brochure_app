@@ -88,6 +88,12 @@ class AppState(rx.State):
     def set_batch_mode(self, mode: str):
         self.batch_mode = mode
 
+    def set_login_username(self, value: str):
+        self.login_username = value
+
+    def set_login_password(self, value: str):
+        self.login_password = value
+
     def keep_alive(self):
         """Keep-alive ping to maintain WebSocket connection on Reflex Cloud."""
         pass
