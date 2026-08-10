@@ -146,7 +146,7 @@ def api_key_card() -> rx.Component:
             ),
             rx.hstack(
                 rx.input(
-                    placeholder="Enter your Gemini API key (AIza…)",
+                    placeholder="",
                     value=AppState.api_key,
                     on_change=AppState.set_api_key,
                     type=rx.cond(AppState.api_key_visible, "text", "password"),
@@ -565,7 +565,6 @@ def batch_tab() -> rx.Component:
         ("logo", "Extract Logo Only"),
         ("both", "Mask + Extract Logo"),
     ]
-    worker_options = [3, 5, 10, 15]
 
     return rx.vstack(
         # Informational note
@@ -707,57 +706,28 @@ def batch_tab() -> rx.Component:
                     width="100%",
                 ),
                 rx.box(height="1px", background="#e4e4e7", width="100%"),
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("zap", size=14, color="#52525b"),
-                        rx.text(
-                            "Concurrency Limit (Parallel Workers)",
-                            color="#52525b",
-                            font_size="0.8rem",
-                            font_weight="600",
-                        ),
-                        align="center",
-                        spacing="2",
+                rx.hstack(
+                    rx.icon("cpu", size=14, color="#52525b"),
+                    rx.text(
+                        "Workers:",
+                        color="#52525b",
+                        font_size="0.8rem",
+                        font_weight="500",
                     ),
-                    rx.hstack(
-                        *[
-                            rx.button(
-                                f"{num} Workers",
-                                on_click=AppState.set_batch_max_workers(num),
-                                background=rx.cond(
-                                    AppState.batch_max_workers == num,
-                                    "#09090b",
-                                    "#ffffff",
-                                ),
-                                color=rx.cond(
-                                    AppState.batch_max_workers == num,
-                                    "#ffffff",
-                                    "#52525b",
-                                ),
-                                border=rx.cond(
-                                    AppState.batch_max_workers == num,
-                                    "1px solid #09090b",
-                                    "1px solid #e4e4e7",
-                                ),
-                                border_radius="6px",
-                                padding="0.45rem 0.9rem",
-                                font_size="0.8rem",
-                                font_weight="600",
-                                cursor="pointer",
-                                transition="all 0.15s ease",
-                                _hover={
-                                    "color": rx.cond(AppState.batch_max_workers == num, "#ffffff", "#09090b"),
-                                    "background": rx.cond(AppState.batch_max_workers == num, "#09090b", "#f4f4f5"),
-                                },
-                            )
-                            for num in worker_options
-                        ],
-                        spacing="2",
-                        flex_wrap="wrap",
+                    rx.slider(
+                        min=1,
+                        max=1,
+                        value=AppState.batch_max_workers,
+                        on_change=AppState.set_batch_max_workers,
+                        width="80px",
                     ),
+                    rx.text(
+                        "1 (512 MB RAM limit)",
+                        color="#71717a",
+                        font_size="0.75rem",
+                    ),
+                    align="center",
                     spacing="2",
-                    align="start",
-                    width="100%",
                 ),
                 spacing="3",
                 width="100%",
@@ -937,7 +907,7 @@ def index() -> rx.Component:
 
                 # Minimalist Footer
                 rx.text(
-                    "Brochure Tool",
+                    "",
                     color="#a1a1aa",
                     font_size="0.75rem",
                     text_align="center",

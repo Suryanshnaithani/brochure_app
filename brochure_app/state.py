@@ -54,7 +54,7 @@ class AppState(rx.State):
     batch_filename: str = ""
     batch_excel_bytes_b64: str = ""
     batch_mode: str = "both"  # "mask" | "logo" | "both"
-    batch_max_workers: int = 5  # Concurrency worker count
+    batch_max_workers: int = 1  # Concurrency worker count (max 1 for 512MB RAM)
 
     batch_processing: bool = False
     batch_logs: list[str] = []
@@ -86,7 +86,7 @@ class AppState(rx.State):
         self.batch_mode = mode
 
     def set_batch_max_workers(self, count: int):
-        self.batch_max_workers = count
+        self.batch_max_workers = min(count, 1)
 
     def keep_alive(self):
         """Keep-alive ping to maintain WebSocket connection on Reflex Cloud."""

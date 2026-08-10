@@ -92,7 +92,7 @@ _COMPRESSION_STEPS = [
 ```
 
 ### Adjust batch workers
-In `state.py` → `process_batch()`:
+In `state.py` → `AppState`:
 ```python
-max_workers=3  # Increase for faster processing (uses more API quota)
+batch_max_workers: int = 1  # Capped at 1 for 512 MB RAM limit
 ```

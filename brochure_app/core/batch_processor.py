@@ -157,10 +157,10 @@ def process_excel_batch(
     api_key: str,
     mode: str = "both",
     progress_callback: Optional[Callable] = None,
-    max_workers: int = 5,
+    max_workers: int = 1,
 ) -> dict:
     """
-    Process all rows from an Excel file concurrently.
+    Process all rows from an Excel file.
 
     Args:
         excel_bytes:       Raw bytes of the uploaded Excel.
@@ -224,27 +224,27 @@ def process_excel_batch(
         if xid and url and url.lower() != "nan":
             rows.append((xid, url))
 
-    _log(f"Starting batch of {len(rows)} rows with {max_workers} concurrent workers in mode '{mode}'…")
+    _log(f"Starting batch of {len(rows)} rows with {max_workers} worker(s) in mode '{mode}'…")
     results = []
-    lock = threading.Lock()
+
+    def _process_row(idx, xid, url):
+        _log(f"[{idx}/{len(rows)}] Processing XID {xid}…")
+        try:
+            row_result = _process_one_row(
+                xid, url, api_key, work_dir, masked_dir, logos_dir, mode, progress_callback,
+            )
+        except Exception as e:
+            row_result = {"XID": xid, "Status": "Failed", "Notes": str(e)}
+        _log(f"[{xid}] Done → {row_result.get('Status')}")
+        return row_result
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_map = {
-            executor.submit(
-                _process_one_row,
-                xid, url, api_key, work_dir, masked_dir, logos_dir, mode, progress_callback,
-            ): xid
-            for xid, url in rows
+        futures = {
+            executor.submit(_process_row, idx, xid, url): xid
+            for idx, (xid, url) in enumerate(rows, 1)
         }
-        for fut in as_completed(future_map):
-            xid = future_map[fut]
-            try:
-                row_result = fut.result()
-            except Exception as e:
-                row_result = {"XID": xid, "Status": "Failed", "Notes": str(e)}
-            with lock:
-                results.append(row_result)
-            _log(f"[{xid}] Done → {row_result.get('Status')}")
+        for future in as_completed(futures):
+            results.append(future.result())
 
     response["results"] = results
 
