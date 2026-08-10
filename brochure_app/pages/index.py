@@ -971,50 +971,51 @@ def index() -> rx.Component:
             login_page(),
             rx.center(
                 rx.vstack(
-                hero(),
-                api_key_card(),
+                    hero(),
+                    api_key_card(),
 
-                # Tab Navigation
-                rx.center(tab_bar(), width="100%"),
+                    # Tab Navigation
+                    rx.center(tab_bar(), width="100%"),
 
-                # Active Tab Panel
-                rx.box(
-                    rx.cond(
-                        AppState.active_tab == "single",
-                        single_tab(),
-                        batch_tab(),
+                    # Active Tab Panel
+                    rx.box(
+                        rx.cond(
+                            AppState.active_tab == "single",
+                            single_tab(),
+                            batch_tab(),
+                        ),
+                        **card(padding="1.75rem"),
                     ),
-                    **card(padding="1.75rem"),
-                ),
 
-                # Minimalist Footer
-                rx.text(
-                    "",
-                    color="#a1a1aa",
-                    font_size="0.75rem",
-                    text_align="center",
-                ),
+                    # Minimalist Footer
+                    rx.text(
+                        "",
+                        color="#a1a1aa",
+                        font_size="0.75rem",
+                        text_align="center",
+                    ),
 
-                # Hidden WebSocket Keep-Alive Ping (every 15s to prevent Fly.dev container idle timeout)
-                rx.box(
-                    rx.button(
-                        id="keep_alive_btn",
-                        on_click=AppState.keep_alive,
+                    # Hidden WebSocket Keep-Alive Ping (every 15s to prevent Fly.dev container idle timeout)
+                    rx.box(
+                        rx.button(
+                            id="keep_alive_btn",
+                            on_click=AppState.keep_alive,
+                            style={"display": "none"},
+                        ),
+                        rx.script(
+                            "setInterval(() => { const b = document.getElementById('keep_alive_btn'); if (b) b.click(); }, 15000);"
+                        ),
                         style={"display": "none"},
                     ),
-                    rx.script(
-                        "setInterval(() => { const b = document.getElementById('keep_alive_btn'); if (b) b.click(); }, 15000);"
-                    ),
-                    style={"display": "none"},
-                ),
 
-                spacing="5",
+                    spacing="5",
+                    width="100%",
+                    max_width="720px",
+                    padding="2.5rem 1rem",
+                ),
                 width="100%",
-                max_width="720px",
-                padding="2.5rem 1rem",
+                min_height="100vh",
             ),
-            width="100%",
-            min_height="100vh",
         ),
         font_family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         background="#ffffff",
