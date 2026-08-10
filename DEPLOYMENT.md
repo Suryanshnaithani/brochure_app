@@ -90,9 +90,3 @@ _COMPRESSION_STEPS = [
     (72, 45),    # Most aggressive
 ]
 ```
-
-### Adjust batch workers
-In `state.py` → `AppState`:
-```python
-batch_max_workers: int = 1  # Capped at 1 for 512 MB RAM limit
-```

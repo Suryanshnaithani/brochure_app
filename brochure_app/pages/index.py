@@ -709,22 +709,10 @@ def batch_tab() -> rx.Component:
                 rx.hstack(
                     rx.icon("cpu", size=14, color="#52525b"),
                     rx.text(
-                        "Workers:",
+                        "Processing Mode: Sequential (Optimized for 512 MB RAM limit)",
                         color="#52525b",
                         font_size="0.8rem",
                         font_weight="500",
-                    ),
-                    rx.slider(
-                        min=1,
-                        max=1,
-                        value=[AppState.batch_max_workers],
-                        on_change=AppState.set_batch_max_workers,
-                        width="80px",
-                    ),
-                    rx.text(
-                        "1 (512 MB RAM limit)",
-                        color="#71717a",
-                        font_size="0.75rem",
                     ),
                     align="center",
                     spacing="2",

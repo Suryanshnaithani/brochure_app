@@ -50,7 +50,7 @@ class TestBrochureCore(unittest.TestCase):
         excel_bytes = buf.getvalue()
 
         # Call batch process without real API key to check structure handling
-        res = process_excel_batch(excel_bytes, api_key="test_dummy_key", max_workers=1)
+        res = process_excel_batch(excel_bytes, api_key="test_dummy_key")
         # Status might complete or fail row downloads, but missing columns error should not fire
         self.assertNotIn("Excel missing columns", res.get("reason", ""))
 

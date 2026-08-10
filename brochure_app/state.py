@@ -54,7 +54,6 @@ class AppState(rx.State):
     batch_filename: str = ""
     batch_excel_bytes_b64: str = ""
     batch_mode: str = "both"  # "mask" | "logo" | "both"
-    batch_max_workers: int = 1  # Concurrency worker count (max 1 for 512MB RAM)
 
     batch_processing: bool = False
     batch_logs: list[str] = []
@@ -84,11 +83,6 @@ class AppState(rx.State):
 
     def set_batch_mode(self, mode: str):
         self.batch_mode = mode
-
-    def set_batch_max_workers(self, count):
-        if isinstance(count, list):
-            count = count[0]
-        self.batch_max_workers = min(int(count), 1)
 
     def keep_alive(self):
         """Keep-alive ping to maintain WebSocket connection on Reflex Cloud."""
@@ -278,7 +272,6 @@ class AppState(rx.State):
                 api_key=self.api_key.strip(),
                 mode=self.batch_mode,
                 progress_callback=callback,
-                max_workers=self.batch_max_workers,
             )
 
             self.batch_logs = logs_local
@@ -294,6 +287,7 @@ class AppState(rx.State):
                     tmp.close()
                     self._batch_zip_path = tmp.name
                     self.batch_has_zip = True
+                    result["zip_bytes"] = None  # Free memory
 
                 if result.get("summary_excel_bytes"):
                     tmp = tempfile.NamedTemporaryFile(
@@ -303,10 +297,14 @@ class AppState(rx.State):
                     tmp.close()
                     self._batch_summary_path = tmp.name
                     self.batch_has_summary = True
+                    result["summary_excel_bytes"] = None  # Free memory
 
                 self.batch_done = True
             else:
                 self.batch_error = result.get("reason", "Unknown error")
+
+            # Free the large result dict
+            result = None
 
         except Exception as e:
             self.batch_error = str(e)

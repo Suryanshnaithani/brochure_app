@@ -4,14 +4,14 @@ Reads an Excel with columns 'XID' and 'Brochure Link'.
 Downloads each PDF, masks it, extracts logo, compresses, zips.
 """
 
+import gc
 import os
 import io
 import logging
+import shutil
 import tempfile
-import threading
 import zipfile
 from typing import Callable, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 import pandas as pd
@@ -157,17 +157,15 @@ def process_excel_batch(
     api_key: str,
     mode: str = "both",
     progress_callback: Optional[Callable] = None,
-    max_workers: int = 1,
 ) -> dict:
     """
-    Process all rows from an Excel file.
+    Process all rows from an Excel file sequentially.
 
     Args:
         excel_bytes:       Raw bytes of the uploaded Excel.
         api_key:           Gemini API key.
         mode:              'mask' | 'logo' | 'both'
         progress_callback: Optional callable(msg: str) for live updates.
-        max_workers:       Concurrent worker count for thread pool.
 
     Returns:
         dict with keys:
@@ -224,10 +222,10 @@ def process_excel_batch(
         if xid and url and url.lower() != "nan":
             rows.append((xid, url))
 
-    _log(f"Starting batch of {len(rows)} rows with {max_workers} worker(s) in mode '{mode}'…")
+    _log(f"Starting batch of {len(rows)} rows in mode '{mode}'…")
     results = []
 
-    def _process_row(idx, xid, url):
+    for idx, (xid, url) in enumerate(rows, 1):
         _log(f"[{idx}/{len(rows)}] Processing XID {xid}…")
         try:
             row_result = _process_one_row(
@@ -235,23 +233,22 @@ def process_excel_batch(
             )
         except Exception as e:
             row_result = {"XID": xid, "Status": "Failed", "Notes": str(e)}
+        results.append(row_result)
         _log(f"[{xid}] Done → {row_result.get('Status')}")
-        return row_result
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(_process_row, idx, xid, url): xid
-            for idx, (xid, url) in enumerate(rows, 1)
-        }
-        for future in as_completed(futures):
-            results.append(future.result())
+        # Clean up downloaded PDF for this row to free disk/memory
+        row_dl_dir = os.path.join(work_dir, "downloads", xid)
+        if os.path.exists(row_dl_dir):
+            shutil.rmtree(row_dl_dir, ignore_errors=True)
+
+        gc.collect()
 
     response["results"] = results
 
-    # ── Build ZIP ──────────────────────────────────────────────────────────────
+    # ── Build ZIP to temp file (avoids holding all bytes in RAM) ─────────────
     _log("Building output ZIP…")
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+    zip_path = os.path.join(work_dir, "output.zip")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for fname in os.listdir(masked_dir):
             fpath = os.path.join(masked_dir, fname)
             zf.write(fpath, arcname=f"masked_pdfs/{fname}")
@@ -259,8 +256,9 @@ def process_excel_batch(
             fpath = os.path.join(logos_dir, fname)
             zf.write(fpath, arcname=f"logos/{fname}")
 
-    zip_buf.seek(0)
-    response["zip_bytes"] = zip_buf.read()
+    with open(zip_path, "rb") as f:
+        response["zip_bytes"] = f.read()
+    os.remove(zip_path)
 
     # ── Build summary Excel ────────────────────────────────────────────────────
     summary_buf = io.BytesIO()
