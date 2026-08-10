@@ -7,10 +7,8 @@ rx.download() mechanism to avoid sending large base64 blobs over WebSocket.
 """
 
 import base64
-import io
 import os
 import tempfile
-import zipfile
 from typing import Optional
 
 import reflex as rx
@@ -140,6 +138,7 @@ class AppState(rx.State):
 
         try:
             pdf_bytes = base64.b64decode(self.single_pdf_bytes_b64)
+            self.single_pdf_bytes_b64 = ""  # Free base64 string
             logs_local: list[str] = []
 
             def callback(msg: str):
@@ -156,28 +155,18 @@ class AppState(rx.State):
             self.single_logs = logs_local
 
             if result["status"]:
-                # Save outputs to temp files for download
-                if result.get("masked_pdf_bytes"):
-                    tmp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".pdf",
-                        prefix="masked_"
-                    )
-                    tmp.write(result["masked_pdf_bytes"])
-                    tmp.close()
-                    self._single_masked_path = tmp.name
+                # Use file paths directly — no bytes in memory
+                if result.get("masked_pdf_path"):
+                    self._single_masked_path = result["masked_pdf_path"]
                     self.single_has_masked = True
                     self.single_size_mb = result.get("size_mb", 0.0)
 
-                if result.get("logo_bytes"):
-                    tmp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".jpeg",
-                        prefix="logo_"
-                    )
-                    tmp.write(result["logo_bytes"])
-                    tmp.close()
-                    self._single_logo_path = tmp.name
+                if result.get("logo_path"):
+                    self._single_logo_path = result["logo_path"]
                     self.single_has_logo = True
-                    self.single_logo_b64 = base64.b64encode(result["logo_bytes"]).decode()
+                    # Read logo only for thumbnail display (small file)
+                    with open(result["logo_path"], "rb") as f:
+                        self.single_logo_b64 = base64.b64encode(f.read()).decode()
 
                 self.single_done = True
             else:
@@ -262,6 +251,7 @@ class AppState(rx.State):
 
         try:
             excel_bytes = base64.b64decode(self.batch_excel_bytes_b64)
+            self.batch_excel_bytes_b64 = ""  # Free base64 string
             logs_local: list[str] = []
 
             def callback(msg: str):
@@ -279,32 +269,18 @@ class AppState(rx.State):
             self.batch_progress_rows = len(self.batch_results)
 
             if result["status"]:
-                if result.get("zip_bytes"):
-                    tmp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".zip", prefix="brochures_"
-                    )
-                    tmp.write(result["zip_bytes"])
-                    tmp.close()
-                    self._batch_zip_path = tmp.name
+                # Use file paths directly — no bytes in memory
+                if result.get("zip_path"):
+                    self._batch_zip_path = result["zip_path"]
                     self.batch_has_zip = True
-                    result["zip_bytes"] = None  # Free memory
 
-                if result.get("summary_excel_bytes"):
-                    tmp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".xlsx", prefix="summary_"
-                    )
-                    tmp.write(result["summary_excel_bytes"])
-                    tmp.close()
-                    self._batch_summary_path = tmp.name
+                if result.get("summary_path"):
+                    self._batch_summary_path = result["summary_path"]
                     self.batch_has_summary = True
-                    result["summary_excel_bytes"] = None  # Free memory
 
                 self.batch_done = True
             else:
                 self.batch_error = result.get("reason", "Unknown error")
-
-            # Free the large result dict
-            result = None
 
         except Exception as e:
             self.batch_error = str(e)

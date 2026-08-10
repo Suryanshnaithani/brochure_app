@@ -2,6 +2,7 @@
 Excel batch processor.
 Reads an Excel with columns 'XID' and 'Brochure Link'.
 Downloads each PDF, masks it, extracts logo, compresses, zips.
+All outputs written to temp files on disk — nothing held in RAM.
 """
 
 import gc
@@ -30,7 +31,6 @@ def _download_pdf(url: str, dest_dir: str) -> Optional[str]:
     try:
         r = requests.get(url, timeout=60, stream=True)
         r.raise_for_status()
-        # Try to get filename from URL
         fname = os.path.basename(url.split("?")[0])
         if not fname.lower().endswith(".pdf"):
             fname = "brochure.pdf"
@@ -54,7 +54,7 @@ def _process_one_row(
     mode: str = "both",
     progress_callback: Optional[Callable] = None,
 ) -> dict:
-    """Process a single XID+URL row end-to-end based on the selected mode ('mask', 'logo', 'both')."""
+    """Process a single XID+URL row end-to-end. All outputs stay on disk."""
 
     def _log(msg: str):
         logger.info(f"[{xid}] {msg}")
@@ -160,22 +160,17 @@ def process_excel_batch(
 ) -> dict:
     """
     Process all rows from an Excel file sequentially.
-
-    Args:
-        excel_bytes:       Raw bytes of the uploaded Excel.
-        api_key:           Gemini API key.
-        mode:              'mask' | 'logo' | 'both'
-        progress_callback: Optional callable(msg: str) for live updates.
+    Returns file paths on disk — no large byte arrays in memory.
 
     Returns:
         dict with keys:
-            status (bool), zip_bytes (bytes | None),
-            summary_excel_bytes (bytes | None), reason (str), results (list[dict])
+            status (bool), zip_path (str), summary_path (str),
+            reason (str), results (list[dict])
     """
     response = {
         "status": False,
-        "zip_bytes": None,
-        "summary_excel_bytes": None,
+        "zip_path": None,
+        "summary_path": None,
         "reason": "",
         "results": [],
     }
@@ -185,11 +180,13 @@ def process_excel_batch(
         if progress_callback:
             progress_callback(msg)
 
+    # Free the excel_bytes immediately after reading
     try:
         df = pd.read_excel(io.BytesIO(excel_bytes))
     except Exception as e:
         response["reason"] = f"Could not read Excel: {e}"
         return response
+    del excel_bytes
 
     # Normalise column names
     col_map = {}
@@ -221,6 +218,7 @@ def process_excel_batch(
         url = str(r.get("Brochure Link", "")).strip()
         if xid and url and url.lower() != "nan":
             rows.append((xid, url))
+    del df
 
     _log(f"Starting batch of {len(rows)} rows in mode '{mode}'…")
     results = []
@@ -236,7 +234,7 @@ def process_excel_batch(
         results.append(row_result)
         _log(f"[{xid}] Done → {row_result.get('Status')}")
 
-        # Clean up downloaded PDF for this row to free disk/memory
+        # Clean up downloaded PDF for this row
         row_dl_dir = os.path.join(work_dir, "downloads", xid)
         if os.path.exists(row_dl_dir):
             shutil.rmtree(row_dl_dir, ignore_errors=True)
@@ -245,7 +243,7 @@ def process_excel_batch(
 
     response["results"] = results
 
-    # ── Build ZIP to temp file (avoids holding all bytes in RAM) ─────────────
+    # ── Build ZIP to temp file ────────────────────────────────────────────────
     _log("Building output ZIP…")
     zip_path = os.path.join(work_dir, "output.zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -255,16 +253,12 @@ def process_excel_batch(
         for fname in os.listdir(logos_dir):
             fpath = os.path.join(logos_dir, fname)
             zf.write(fpath, arcname=f"logos/{fname}")
+    response["zip_path"] = zip_path
 
-    with open(zip_path, "rb") as f:
-        response["zip_bytes"] = f.read()
-    os.remove(zip_path)
-
-    # ── Build summary Excel ────────────────────────────────────────────────────
-    summary_buf = io.BytesIO()
-    pd.DataFrame(results).to_excel(summary_buf, index=False)
-    summary_buf.seek(0)
-    response["summary_excel_bytes"] = summary_buf.read()
+    # ── Build summary Excel to temp file ──────────────────────────────────────
+    summary_path = os.path.join(work_dir, "summary.xlsx")
+    pd.DataFrame(results).to_excel(summary_path, index=False)
+    response["summary_path"] = summary_path
 
     response.update(status=True, reason=f"Processed {len(results)} rows.")
     _log("Batch complete.")
@@ -275,25 +269,19 @@ def process_single_pdf_full(
     pdf_bytes: bytes,
     filename: str,
     api_key: str,
-    mode: str = "both",  # "mask", "logo", "both"
+    mode: str = "both",
     progress_callback: Optional[Callable] = None,
 ) -> dict:
     """
-    Process a single uploaded PDF (masking + logo + compression).
-
-    Args:
-        pdf_bytes:   Raw PDF bytes.
-        filename:    Original filename (used as output name).
-        api_key:     Gemini API key.
-        mode:        'mask' | 'logo' | 'both'
+    Process a single uploaded PDF. Returns file paths on disk — no bytes in memory.
 
     Returns:
-        dict with status, masked_pdf_bytes, logo_bytes, reason, size_mb
+        dict with status, masked_pdf_path, logo_path, reason, size_mb
     """
     response = {
         "status": False,
-        "masked_pdf_bytes": None,
-        "logo_bytes": None,
+        "masked_pdf_path": None,
+        "logo_path": None,
         "reason": "",
         "size_mb": 0.0,
     }
@@ -312,6 +300,7 @@ def process_single_pdf_full(
 
     with open(input_path, "wb") as f:
         f.write(pdf_bytes)
+    del pdf_bytes  # Free immediately
 
     stem = os.path.splitext(filename)[0]
 
@@ -338,10 +327,8 @@ def process_single_pdf_full(
                 progress_callback=_log,
             )
 
-            size_mb = os.path.getsize(masked_path) / 1e6
-            with open(masked_path, "rb") as f:
-                response["masked_pdf_bytes"] = f.read()
-            response["size_mb"] = size_mb
+            response["masked_pdf_path"] = masked_path
+            response["size_mb"] = os.path.getsize(masked_path) / 1e6
 
         if mode in ("logo", "both"):
             _log("Extracting logo…")
@@ -353,8 +340,7 @@ def process_single_pdf_full(
                 progress_callback=_log,
             )
             if logo_result["status"]:
-                with open(logo_result["data"], "rb") as f:
-                    response["logo_bytes"] = f.read()
+                response["logo_path"] = logo_result["data"]
 
         response.update(status=True, reason="Processing complete.")
         return response
