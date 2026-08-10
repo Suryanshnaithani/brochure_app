@@ -861,11 +861,102 @@ def hero() -> rx.Component:
                 spacing="0",
                 align="start",
             ),
+            rx.spacer(),
+            rx.button(
+                rx.icon("log_out", size=14),
+                "Logout",
+                on_click=AppState.logout,
+                size="2",
+                variant="outline",
+                style={
+                    "border": "1px solid #e4e4e7",
+                    "color": "#52525b",
+                    "cursor": "pointer",
+                    "_hover": {"background": "#f4f4f5"},
+                },
+            ),
             spacing="3",
             align="center",
+            width="100%",
         ),
         spacing="3",
         padding_bottom="0.25rem",
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Login Page
+# ──────────────────────────────────────────────────────────────────────────────
+
+def login_page() -> rx.Component:
+    return rx.center(
+        rx.vstack(
+            rx.text(
+                "Brochure Analyzer",
+                font_size="1.5rem",
+                font_weight="800",
+                color="#09090b",
+                font_family="'Outfit', sans-serif",
+            ),
+            rx.text(
+                "Sign in to continue",
+                font_size="0.85rem",
+                color="#71717a",
+                margin_top="-0.25rem",
+            ),
+            rx.vstack(
+                rx.text("Username", font_size="0.8rem", font_weight="500", color="#3f3f46"),
+                rx.input(
+                    placeholder="Enter username",
+                    value=AppState.login_username,
+                    on_change=AppState.set_login_username,
+                    width="100%",
+                    size="3",
+                    style={"border": "1px solid #e4e4e7", "background": "#ffffff"},
+                ),
+                spacing="1",
+                width="100%",
+            ),
+            rx.vstack(
+                rx.text("Password", font_size="0.8rem", font_weight="500", color="#3f3f46"),
+                rx.input(
+                    placeholder="Enter password",
+                    value=AppState.login_password,
+                    on_change=AppState.set_login_password,
+                    type="password",
+                    width="100%",
+                    size="3",
+                    style={"border": "1px solid #e4e4e7", "background": "#ffffff"},
+                ),
+                spacing="1",
+                width="100%",
+            ),
+            rx.cond(
+                AppState.login_error != "",
+                rx.text(AppState.login_error, color="#dc2626", font_size="0.8rem"),
+                rx.box(),
+            ),
+            rx.button(
+                "Sign In",
+                on_click=AppState.login,
+                width="100%",
+                size="3",
+                style={
+                    "background": "#09090b",
+                    "color": "#ffffff",
+                    "font_weight": "600",
+                    "cursor": "pointer",
+                    "_hover": {"background": "#27272a"},
+                },
+            ),
+            spacing="3",
+            width="100%",
+            max_width="360px",
+            **card(padding="2rem"),
+        ),
+        width="100%",
+        min_height="100vh",
+        background="#f9fafb",
     )
 
 
@@ -875,8 +966,11 @@ def hero() -> rx.Component:
 
 def index() -> rx.Component:
     return rx.box(
-        rx.center(
-            rx.vstack(
+        rx.cond(
+            AppState.logged_in == False,
+            login_page(),
+            rx.center(
+                rx.vstack(
                 hero(),
                 api_key_card(),
 

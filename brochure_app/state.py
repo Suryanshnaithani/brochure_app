@@ -25,6 +25,12 @@ class AppState(rx.State):
     api_key: str = ""
     api_key_visible: bool = False
 
+    # ── Login ──────────────────────────────────────────────────────────────────
+    logged_in: bool = False
+    login_username: str = ""
+    login_password: str = ""
+    login_error: str = ""
+
     # ── Tab selection ──────────────────────────────────────────────────────────
     active_tab: str = "single"  # "single" | "batch"
 
@@ -85,6 +91,20 @@ class AppState(rx.State):
     def keep_alive(self):
         """Keep-alive ping to maintain WebSocket connection on Reflex Cloud."""
         pass
+
+    def login(self):
+        if self.login_username == "ops.automation" and self.login_password == "123456":
+            self.logged_in = True
+            self.login_error = ""
+            self.login_username = ""
+            self.login_password = ""
+        else:
+            self.login_error = "Invalid credentials"
+            self.login_password = ""
+
+    def logout(self):
+        self.logged_in = False
+        self.login_error = ""
 
     # ── Single PDF upload ──────────────────────────────────────────────────────
 
