@@ -524,7 +524,7 @@ def batch_results_table() -> rx.Component:
                         rx.foreach(
                             AppState.batch_results,
                             lambda item: rx.table.row(
-                                rx.table.cell(item["XID"]),
+                                rx.table.cell(rx.text(item["XID"], color="#09090b")),
                                 rx.table.cell(
                                     rx.cond(
                                         item["Status"] == "Success",
@@ -532,9 +532,9 @@ def batch_results_table() -> rx.Component:
                                         _mono_tag("FAILED"),
                                     )
                                 ),
-                                rx.table.cell(item["Masked PDF"]),
-                                rx.table.cell(item["Logo"]),
-                                rx.table.cell(item["Size (MB)"]),
+                                rx.table.cell(rx.text(item["Masked PDF"], color="#09090b")),
+                                rx.table.cell(rx.text(item["Logo"], color="#09090b")),
+                                rx.table.cell(rx.text(item["Size (MB)"], color="#09090b")),
                             ),
                         )
                     ),
