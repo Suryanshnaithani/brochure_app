@@ -717,7 +717,7 @@ def batch_tab() -> rx.Component:
                     rx.slider(
                         min=1,
                         max=1,
-                        value=AppState.batch_max_workers,
+                        value=[AppState.batch_max_workers],
                         on_change=AppState.set_batch_max_workers,
                         width="80px",
                     ),

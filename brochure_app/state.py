@@ -85,8 +85,10 @@ class AppState(rx.State):
     def set_batch_mode(self, mode: str):
         self.batch_mode = mode
 
-    def set_batch_max_workers(self, count: int):
-        self.batch_max_workers = min(count, 1)
+    def set_batch_max_workers(self, count):
+        if isinstance(count, list):
+            count = count[0]
+        self.batch_max_workers = min(int(count), 1)
 
     def keep_alive(self):
         """Keep-alive ping to maintain WebSocket connection on Reflex Cloud."""
